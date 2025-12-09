@@ -1,15 +1,39 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <id>com.github.muratiger.promptworkinglogs</id>
-    <name>prompt-working-logs</name>
-    <vendor>muratiger</vendor>
+    <name>Prompt Work</name>
+    <vendor>instantcoffeejp</vendor>
 
     <depends>com.intellij.modules.platform</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.muratiger.promptworkinglogs.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="com.github.muratiger.promptworkinglogs.startup.MyProjectActivity" />
+        <applicationService serviceImplementation="com.github.muratiger.promptworkinglogs.settings.SimpleSettings"/>
+        <applicationConfigurable
+            parentId="tools"
+            instance="com.github.muratiger.promptworkinglogs.settings.SimpleSettingsConfigurable"
+            id="com.github.muratiger.promptworkinglogs.settings.SimpleSettingsConfigurable"
+            displayName="Prompt Work"/>
+        <codeInsight.lineMarkerProvider
+            implementationClass="com.github.muratiger.promptworkinglogs.gutter.MarkdownRunLineMarker"
+            language=""/>
+        <notificationGroup id="prompt-work" displayType="BALLOON"/>
+        <toolWindow id="prompt-work"
+                    anchor="bottom"
+                    icon="AllIcons.Actions.Execute"
+                    factoryClass="com.github.muratiger.promptworkinglogs.toolwindow.ClaudeToolWindowFactory"/>
     </extensions>
+
+    <actions>
+        <action id="com.github.muratiger.promptworkinglogs.RunClaudeAction"
+                class="com.github.muratiger.promptworkinglogs.action.RunClaudeAction"
+                text="Run Claude Code"
+                description="Run Claude Code on current markdown file">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt W"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="ctrl alt W"/>
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="ctrl alt W"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+        </action>
+    </actions>
 </idea-plugin>
