@@ -5,3 +5,5 @@
 .kotlin
 .qodana
 build
+prompts
+settings.local.json
