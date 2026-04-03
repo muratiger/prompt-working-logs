@@ -31,8 +31,14 @@ object ClaudeCliRunner {
         // ファイルパスを相対パスに変換
         val relativePath = file.path.removePrefix(basePath).removePrefix("/")
 
-        // CLIコマンドを構築（${filePath}を置換）
-        val command = settings.state.cliCommand.replace("\${filePath}", relativePath)
+        // ファイル名と同じ名前のディレクトリパスを生成（拡張子を除去）
+        // 例: prompts/test1.md → prompts/test1/
+        val dirPath = relativePath.substringBeforeLast(".") + "/"
+
+        // CLIコマンドを構築（${filePath}, ${dirPath}を置換）
+        val command = settings.state.cliCommand
+            .replace("\${filePath}", relativePath)
+            .replace("\${dirPath}", dirPath)
 
         // ToolWindow を取得して表示
         val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("prompt-work")
@@ -49,6 +55,10 @@ object ClaudeCliRunner {
 
         try {
             val handler = KillableColoredProcessHandler(commandLine)
+
+            // プロセスハンドラをサービスに保存（中止機能用）
+            val service = ClaudeConsoleService.getInstance(project)
+            service.processHandler = handler
 
             // JSON出力をパースして読みやすい形式で表示
             handler.addProcessListener(object : ProcessAdapter() {
@@ -84,8 +94,11 @@ object ClaudeCliRunner {
                 }
 
                 override fun processTerminated(event: ProcessEvent) {
-                    // ファイルをリフレッシュ
-                    file.refresh(true, false)
+                    // プロセスハンドラ参照をクリア
+                    service.processHandler = null
+
+                    // ファイルの親ディレクトリを再帰的にリフレッシュ（新規作成ファイル・ディレクトリもProject viewに反映）
+                    file.parent?.refresh(true, true)
 
                     if (event.exitCode != 0) {
                         NotificationGroupManager.getInstance()
