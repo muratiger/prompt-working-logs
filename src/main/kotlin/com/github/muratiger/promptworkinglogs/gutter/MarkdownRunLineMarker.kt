@@ -21,6 +21,9 @@ class MarkdownRunLineMarker : LineMarkerProviderDescriptor() {
         // ファイルの最初の要素にのみマーカーを表示
         if (element !is PsiFile) return null
 
+        // 複数のPSIツリーがある場合、ベース言語のPSIファイルのみにマーカーを表示
+        if (element.viewProvider.baseLanguage != element.language) return null
+
         val file = element.containingFile?.virtualFile ?: return null
 
         // .mdファイルのみ対象

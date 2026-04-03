@@ -13,7 +13,7 @@ class SimpleSettings : PersistentStateComponent<SimpleSettings.State> {
 
     data class State(
         var watchedDirectory: String = "prompt-work",
-        var cliCommand: String = "\$HOME/.claude/local/claude -p \"\${filePath} の一番下のセクション（メタデータセクションを除く）をプロンプトとして入力。セクションの末尾に出力結果を3行でまとめてものとセッションIDを追記してください。処理しているときのログと回答は日本語でお願いします。\" --dangerously-skip-permissions --output-format stream-json --verbose"
+        var cliCommand: String = "\$HOME/.claude/local/claude -p \"Use the last section (excluding metadata sections) of \${filePath} as the prompt input. Append a 3-line summary of the output and the session ID at the end of that section. Please provide ALL output entirely in Japanese. This includes your internal thinking/reasoning process (the thinking sections must be written in Japanese, not English). Output the processing logs and detailed results to the \${dirPath} directory as a markdown file named with the section name and current datetime.\" --dangerously-skip-permissions --output-format stream-json --verbose"
     )
 
     private var myState = State()
