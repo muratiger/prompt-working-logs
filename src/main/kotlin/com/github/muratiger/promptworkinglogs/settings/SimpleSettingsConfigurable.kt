@@ -34,6 +34,7 @@ class SimpleSettingsConfigurable : Configurable {
             .addSeparator()
             .addLabeledComponent(JBLabel("CLI Command:"), commandPanel, 1, true)
             .addComponent(JBLabel("\${filePath} は対象ファイルの相対パスに置換されます"))
+            .addComponent(JBLabel("\${dirPath} は対象ファイルと同名のディレクトリパス（拡張子除去・末尾 '/'）に置換されます"))
             .addComponentFillVertically(JPanel(), 0)
             .panel
     }

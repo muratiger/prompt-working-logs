@@ -23,6 +23,10 @@
                     anchor="bottom"
                     icon="AllIcons.Actions.Execute"
                     factoryClass="com.github.muratiger.promptworkinglogs.toolwindow.ClaudeToolWindowFactory"/>
+        <toolWindow id="prompt-work-files"
+                    anchor="right"
+                    icon="AllIcons.Toolwindows.Documentation"
+                    factoryClass="com.github.muratiger.promptworkinglogs.toolwindow.PromptFilesToolWindowFactory"/>
     </extensions>
 
     <actions>
