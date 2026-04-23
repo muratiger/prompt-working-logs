@@ -12,19 +12,32 @@ import com.intellij.openapi.components.Storage
 class SimpleSettings : PersistentStateComponent<SimpleSettings.State> {
 
     data class State(
-        var watchedDirectory: String = "prompt-work",
-        var cliCommand: String = "\$HOME/.claude/local/claude -p \"Use the last section (excluding metadata sections) of \${filePath} as the prompt input. Append a 3-line summary of the output and the session ID at the end of that section. Please provide ALL output entirely in Japanese. This includes your internal thinking/reasoning process (the thinking sections must be written in Japanese, not English). Output the processing logs and detailed results to the \${dirPath} directory as a markdown file named with the section name and current datetime.\" --dangerously-skip-permissions --output-format stream-json --verbose"
+        var watchedDirectory: String = DEFAULT_WATCHED_DIRECTORY,
+        var cliCommand: String = DEFAULT_CLI_COMMAND,
+        // Bump CURRENT_DEFAULTS_VERSION whenever DEFAULT_CLI_COMMAND changes so existing
+        // users' persisted state gets overwritten on the next plugin load.
+        var defaultsVersion: Int = 0
     )
 
-    private var myState = State()
+    private var myState = State(defaultsVersion = CURRENT_DEFAULTS_VERSION)
 
     override fun getState(): State = myState
 
     override fun loadState(state: State) {
         myState = state
+        if (state.defaultsVersion < CURRENT_DEFAULTS_VERSION) {
+            myState.cliCommand = DEFAULT_CLI_COMMAND
+            myState.defaultsVersion = CURRENT_DEFAULTS_VERSION
+        }
     }
 
     companion object {
+        const val CURRENT_DEFAULTS_VERSION = 1
+
+        const val DEFAULT_WATCHED_DIRECTORY = "prompt-work"
+        const val DEFAULT_CLI_COMMAND =
+            "\$HOME/.claude/local/claude -p \"Use the last section (excluding metadata sections) of \${filePath} as the prompt input. Append a 3-line summary of the output and the session ID at the end of that section. Please provide ALL output entirely in Japanese. This includes your internal thinking/reasoning process (the thinking sections must be written in Japanese, not English). Output the processing logs and detailed results to the \${dirPath} directory as a markdown file named with the section name and current datetime.\" --dangerously-skip-permissions --output-format stream-json --verbose"
+
         fun getInstance(): SimpleSettings =
             ApplicationManager.getApplication().getService(SimpleSettings::class.java)
     }
