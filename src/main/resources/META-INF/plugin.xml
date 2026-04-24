@@ -5,6 +5,7 @@
     <vendor>instantcoffeejp</vendor>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>org.intellij.plugins.markdown</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
@@ -15,9 +16,6 @@
             instance="com.github.muratiger.promptworkinglogs.settings.SimpleSettingsConfigurable"
             id="com.github.muratiger.promptworkinglogs.settings.SimpleSettingsConfigurable"
             displayName="Prompt Work"/>
-        <codeInsight.lineMarkerProvider
-            implementationClass="com.github.muratiger.promptworkinglogs.gutter.MarkdownRunLineMarker"
-            language=""/>
         <notificationGroup id="prompt-work" displayType="BALLOON"/>
         <toolWindow id="prompt-work"
                     anchor="bottom"
@@ -33,11 +31,7 @@
         <action id="com.github.muratiger.promptworkinglogs.RunClaudeAction"
                 class="com.github.muratiger.promptworkinglogs.action.RunClaudeAction"
                 text="Run Claude Code"
-                description="Run Claude Code on current markdown file">
-            <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt W"/>
-            <keyboard-shortcut keymap="Mac OS X" first-keystroke="ctrl alt W"/>
-            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="ctrl alt W"/>
-            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
-        </action>
+                description="Run Claude Code on current markdown file"
+                icon="/icons/claudeRun.svg"/>
     </actions>
 </idea-plugin>

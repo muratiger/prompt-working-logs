@@ -1,5 +1,6 @@
 package com.github.muratiger.promptworkinglogs.toolwindow
 
+import com.github.muratiger.promptworkinglogs.action.RunClaudeAction
 import com.github.muratiger.promptworkinglogs.settings.SimpleSettings
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionManager
@@ -7,18 +8,22 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.CustomShortcutSet
 import com.intellij.openapi.actionSystem.DataSink
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.actionSystem.ToggleAction
 import com.intellij.openapi.actionSystem.UiDataProvider
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.InputValidator
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
@@ -29,17 +34,26 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.psi.PsiManager
 import com.intellij.ui.OnePixelSplitter
+import com.intellij.ui.PopupHandler
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.treeStructure.Tree
 import com.intellij.util.messages.MessageBusConnection
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.Transferable
+import java.awt.datatransfer.UnsupportedFlavorException
+import java.awt.event.KeyEvent
 import java.io.File
+import javax.swing.DropMode
 import javax.swing.Icon
+import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JTree
+import javax.swing.KeyStroke
 import javax.swing.SwingUtilities
+import javax.swing.TransferHandler
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeCellRenderer
 import javax.swing.tree.DefaultTreeModel
@@ -71,10 +85,12 @@ private class PromptFilesPanel(private val project: Project) : JPanel(BorderLayo
         isRootVisible = true
         selectionModel.selectionMode = TreeSelectionModel.SINGLE_TREE_SELECTION
         cellRenderer = FileTreeCellRenderer()
+        dragEnabled = true
+        dropMode = DropMode.ON
     }
     private val treeScrollPane = JBScrollPane(tree)
     private val editorContainer = JPanel(BorderLayout())
-    private val placeholder = JBLabel("ファイルを選択してください", JBLabel.CENTER)
+    private val placeholder = JBLabel("Select a file", JBLabel.CENTER)
     private val splitter = OnePixelSplitter(false, 0.3f)
     private val contentWrapper = JPanel(BorderLayout())
 
@@ -92,40 +108,83 @@ private class PromptFilesPanel(private val project: Project) : JPanel(BorderLayo
 
         applyLayout()
 
-        val refreshAction = object : AnAction("更新", "ファイルツリーを再読み込み", AllIcons.Actions.Refresh) {
+        val refreshAction = object : AnAction("Refresh", "Reload the file tree", AllIcons.Actions.Refresh) {
             override fun actionPerformed(e: AnActionEvent) = refreshTree()
             override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
         }
         val leftAction = SetPositionAction(
-            TreePosition.LEFT, "ツリーを左に配置", AllIcons.General.ArrowLeft
+            TreePosition.LEFT, "Place tree on the left", AllIcons.General.ArrowLeft
         )
         val rightAction = SetPositionAction(
-            TreePosition.RIGHT, "ツリーを右に配置", AllIcons.General.ArrowRight
+            TreePosition.RIGHT, "Place tree on the right", AllIcons.General.ArrowRight
         )
         val bottomAction = SetPositionAction(
-            TreePosition.BOTTOM, "ツリーを下に配置", AllIcons.General.ArrowDown
+            TreePosition.BOTTOM, "Place tree on the bottom", AllIcons.General.ArrowDown
         )
         val anchorLeftAction = SetToolWindowAnchorAction(
-            ToolWindowAnchor.LEFT, "ToolWindow を左側に表示", AllIcons.Actions.MoveToLeftTop
+            ToolWindowAnchor.LEFT, "Anchor tool window to the left", AllIcons.Actions.MoveToLeftTop
         )
         val anchorRightAction = SetToolWindowAnchorAction(
-            ToolWindowAnchor.RIGHT, "ToolWindow を右側に表示", AllIcons.Actions.MoveToRightTop
+            ToolWindowAnchor.RIGHT, "Anchor tool window to the right", AllIcons.Actions.MoveToRightTop
         )
         val toggleTreeAction = ToggleTreeVisibilityAction()
-        val group = DefaultActionGroup(
-            refreshAction,
-            Separator.getInstance(),
-            toggleTreeAction,
-            leftAction,
-            rightAction,
-            bottomAction,
-            Separator.getInstance(),
-            anchorLeftAction,
-            anchorRightAction
+        val runClaudeAction = ActionManager.getInstance().getAction(RunClaudeAction.ID)
+        if (runClaudeAction != null) {
+            runClaudeAction.registerCustomShortcutSet(
+                CustomShortcutSet.fromString("control alt W"),
+                this
+            )
+        }
+        val newFileAction = NewFileAction()
+        val newDirectoryAction = NewDirectoryAction()
+        val renameAction = RenameSelectedAction()
+        val moveAction = MoveSelectedAction()
+        val deleteAction = DeleteSelectedAction()
+        renameAction.registerCustomShortcutSet(
+            CustomShortcutSet(KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0)),
+            tree
         )
+        moveAction.registerCustomShortcutSet(
+            CustomShortcutSet(KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0)),
+            tree
+        )
+        deleteAction.registerCustomShortcutSet(
+            CustomShortcutSet(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)),
+            tree
+        )
+
+        val group = DefaultActionGroup().apply {
+            if (runClaudeAction != null) {
+                add(runClaudeAction)
+                addSeparator()
+            }
+            add(refreshAction)
+            addSeparator()
+            add(toggleTreeAction)
+            add(leftAction)
+            add(rightAction)
+            add(bottomAction)
+            addSeparator()
+            add(anchorLeftAction)
+            add(anchorRightAction)
+        }
         val toolbar = ActionManager.getInstance()
             .createActionToolbar("PromptFilesToolbar", group, false)
         toolbar.targetComponent = this
+
+        val contextMenuGroup = DefaultActionGroup().apply {
+            add(newFileAction)
+            add(newDirectoryAction)
+            addSeparator()
+            add(renameAction)
+            add(moveAction)
+            add(deleteAction)
+            addSeparator()
+            add(refreshAction)
+        }
+        PopupHandler.installPopupMenu(tree, contextMenuGroup, "PromptFilesTreePopup")
+
+        tree.transferHandler = TreeFileTransferHandler()
 
         add(toolbar.component, BorderLayout.WEST)
         add(contentWrapper, BorderLayout.CENTER)
@@ -210,7 +269,7 @@ private class PromptFilesPanel(private val project: Project) : JPanel(BorderLayo
             rootNode.userObject = FileNode(rootFile)
             populateNode(rootNode, rootFile)
         } else {
-            rootNode.userObject = "(watched directory が存在しません: ${rootFile?.path ?: "?"})"
+            rootNode.userObject = "(watched directory does not exist: ${rootFile?.path ?: "?"})"
         }
         treeModel.reload()
 
@@ -265,7 +324,7 @@ private class PromptFilesPanel(private val project: Project) : JPanel(BorderLayo
         val document = FileDocumentManager.getInstance().getDocument(file)
         if (document == null) {
             editorContainer.removeAll()
-            editorContainer.add(JBLabel("ドキュメントを読み込めません: ${file.name}", JBLabel.CENTER), BorderLayout.CENTER)
+            editorContainer.add(JBLabel("Could not load document: ${file.name}", JBLabel.CENTER), BorderLayout.CENTER)
             editorContainer.revalidate()
             editorContainer.repaint()
             return
@@ -334,8 +393,8 @@ private class PromptFilesPanel(private val project: Project) : JPanel(BorderLayo
     }
 
     private inner class ToggleTreeVisibilityAction : ToggleAction(
-        "ツリー表示切替",
-        "ファイルツリーの表示/非表示を切り替え（非表示時はエディタを全幅で表示）",
+        "Toggle tree visibility",
+        "Show/hide the file tree (editor uses full width when hidden)",
         AllIcons.Actions.PreviewDetails
     ) {
         override fun isSelected(e: AnActionEvent): Boolean = treeVisible
@@ -371,5 +430,392 @@ private class PromptFilesPanel(private val project: Project) : JPanel(BorderLayo
         }
 
         override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+    }
+
+    private fun selectedFile(): File? =
+        (tree.lastSelectedPathComponent as? DefaultMutableTreeNode)
+            ?.userObjectAsFileNode()?.file
+
+    private fun targetDirectoryForCreation(): File? {
+        val selected = selectedFile()
+        val root = (rootNode.userObject as? FileNode)?.file ?: return null
+        val dir = when {
+            selected == null -> root
+            selected.isDirectory -> selected
+            else -> selected.parentFile ?: root
+        }
+        return if (dir.exists() && dir.isDirectory) dir else null
+    }
+
+    private fun refreshAndSelect(absolutePath: String) {
+        val watchedRoot = watchedRootPath()
+        if (watchedRoot != null) {
+            LocalFileSystem.getInstance().refreshAndFindFileByPath(watchedRoot)?.refresh(false, true)
+        }
+        refreshTree()
+        selectNodeByPath(rootNode, absolutePath)
+    }
+
+    private inner class NewFileAction : AnAction(
+        "New File",
+        "Create a new file in the selected directory (or root when nothing is selected)",
+        AllIcons.FileTypes.Text
+    ) {
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = targetDirectoryForCreation() != null
+        }
+
+        override fun actionPerformed(e: AnActionEvent) {
+            val dir = targetDirectoryForCreation() ?: return
+            val name = Messages.showInputDialog(
+                project,
+                "Enter file name",
+                "New File",
+                AllIcons.FileTypes.Text,
+                "",
+                FileNameInputValidator(dir)
+            )?.trim().orEmpty()
+            if (name.isEmpty()) return
+
+            val parentVf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(dir) ?: return
+            val created = try {
+                WriteCommandAction.runWriteCommandAction<VirtualFile>(project) {
+                    parentVf.createChildData(this, name)
+                }
+            } catch (ex: Exception) {
+                Messages.showErrorDialog(project, "Failed to create file: ${ex.message}", "New File")
+                return
+            }
+            refreshAndSelect(created.path)
+        }
+    }
+
+    private inner class NewDirectoryAction : AnAction(
+        "New Directory",
+        "Create a new directory in the selected directory (or root when nothing is selected)",
+        AllIcons.Nodes.Folder
+    ) {
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = targetDirectoryForCreation() != null
+        }
+
+        override fun actionPerformed(e: AnActionEvent) {
+            val dir = targetDirectoryForCreation() ?: return
+            val name = Messages.showInputDialog(
+                project,
+                "Enter directory name",
+                "New Directory",
+                AllIcons.Nodes.Folder,
+                "",
+                FileNameInputValidator(dir)
+            )?.trim().orEmpty()
+            if (name.isEmpty()) return
+
+            val parentVf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(dir) ?: return
+            val created = try {
+                WriteCommandAction.runWriteCommandAction<VirtualFile>(project) {
+                    VfsUtil.createDirectoryIfMissing(parentVf, name)
+                }
+            } catch (ex: Exception) {
+                Messages.showErrorDialog(project, "Failed to create directory: ${ex.message}", "New Directory")
+                return
+            }
+            if (created == null) {
+                Messages.showErrorDialog(project, "Failed to create directory", "New Directory")
+                return
+            }
+            refreshAndSelect(created.path)
+        }
+    }
+
+    private inner class RenameSelectedAction : AnAction(
+        "Rename",
+        "Rename the selected file or directory",
+        AllIcons.Actions.Edit
+    ) {
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+        override fun update(e: AnActionEvent) {
+            val selected = selectedFile()
+            val root = (rootNode.userObject as? FileNode)?.file
+            e.presentation.isEnabled = selected != null && selected != root
+        }
+
+        override fun actionPerformed(e: AnActionEvent) {
+            val selected = selectedFile() ?: return
+            val root = (rootNode.userObject as? FileNode)?.file
+            if (selected == root) return
+            val parent = selected.parentFile ?: return
+            val newName = Messages.showInputDialog(
+                project,
+                "Enter new name",
+                "Rename",
+                AllIcons.Actions.Edit,
+                selected.name,
+                FileNameInputValidator(parent, selected)
+            )?.trim().orEmpty()
+            if (newName.isEmpty() || newName == selected.name) return
+
+            val vf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(selected) ?: return
+            val newPath = File(parent, newName).absolutePath
+            try {
+                WriteCommandAction.runWriteCommandAction(project) {
+                    vf.rename(this, newName)
+                }
+            } catch (ex: Exception) {
+                Messages.showErrorDialog(project, "Failed to rename: ${ex.message}", "Rename")
+                return
+            }
+            refreshAndSelect(newPath)
+        }
+    }
+
+    private inner class MoveSelectedAction : AnAction(
+        "Move",
+        "Move the selected file or directory to another directory",
+        AllIcons.Actions.Forward
+    ) {
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+        override fun update(e: AnActionEvent) {
+            val selected = selectedFile()
+            val root = (rootNode.userObject as? FileNode)?.file
+            e.presentation.isEnabled = selected != null && selected != root
+        }
+
+        @Suppress("DEPRECATION")
+        override fun actionPerformed(e: AnActionEvent) {
+            val selected = selectedFile() ?: return
+            val root = (rootNode.userObject as? FileNode)?.file ?: return
+            if (selected == root) return
+            val currentParent = selected.parentFile ?: return
+
+            val candidates = collectMoveTargetDirectories(root, selected)
+                .filter { it != currentParent }
+            if (candidates.isEmpty()) {
+                Messages.showInfoMessage(
+                    project,
+                    "No other destination directory available",
+                    "Move"
+                )
+                return
+            }
+
+            val rootPath = root.toPath()
+            val labels = candidates.map { dir ->
+                val rel = rootPath.relativize(dir.toPath()).toString()
+                if (rel.isEmpty()) "/ (${root.name})" else rel
+            }.toTypedArray()
+
+            val idx = Messages.showChooseDialog(
+                project,
+                "Select destination directory",
+                "Move: ${selected.name}",
+                AllIcons.Actions.Forward,
+                labels,
+                labels.first()
+            )
+            if (idx < 0) return
+            val targetDir = candidates[idx]
+            val newFile = File(targetDir, selected.name)
+            if (newFile.exists()) {
+                val kind = if (selected.isDirectory) "directory" else "file"
+                Messages.showErrorDialog(
+                    project,
+                    "A $kind with the same name already exists at destination: ${newFile.path}",
+                    "Move"
+                )
+                return
+            }
+
+            val vf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(selected) ?: return
+            val targetVf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(targetDir) ?: return
+
+            try {
+                WriteCommandAction.runWriteCommandAction(project) {
+                    vf.move(this, targetVf)
+                }
+            } catch (ex: Exception) {
+                Messages.showErrorDialog(project, "Failed to move: ${ex.message}", "Move")
+                return
+            }
+            refreshAndSelect(newFile.absolutePath)
+        }
+
+        private fun collectMoveTargetDirectories(root: File, exclude: File): List<File> {
+            val result = mutableListOf<File>()
+            fun walk(dir: File) {
+                result.add(dir)
+                dir.listFiles()?.forEach { child ->
+                    if (child.isDirectory && child != exclude) {
+                        walk(child)
+                    }
+                }
+            }
+            if (root.isDirectory) walk(root)
+            return result
+        }
+    }
+
+    private inner class TreeFileTransferHandler : TransferHandler() {
+        private val flavor = DataFlavor(
+            DataFlavor.javaJVMLocalObjectMimeType + ";class=java.io.File",
+            "File"
+        )
+
+        override fun getSourceActions(c: JComponent): Int = MOVE
+
+        override fun createTransferable(c: JComponent): Transferable? {
+            val selected = selectedFile() ?: return null
+            val root = (rootNode.userObject as? FileNode)?.file
+            if (selected == root) return null
+            return FileTransferable(selected, flavor)
+        }
+
+        override fun canImport(support: TransferSupport): Boolean {
+            if (!support.isDrop) return false
+            if (!support.isDataFlavorSupported(flavor)) return false
+            val dropLocation = support.dropLocation as? JTree.DropLocation ?: return false
+            val path = dropLocation.path ?: return false
+            val targetNode = path.lastPathComponent as? DefaultMutableTreeNode ?: return false
+            val targetFile = targetNode.userObjectAsFileNode()?.file ?: return false
+            val source = sourceFromSupport(support) ?: return false
+
+            val destDir = if (targetFile.isDirectory) targetFile else targetFile.parentFile ?: return false
+            if (destDir == source) return false
+            if (isAncestor(source, destDir)) return false
+            if (destDir == source.parentFile) return false
+            return true
+        }
+
+        override fun importData(support: TransferSupport): Boolean {
+            if (!canImport(support)) return false
+            val dropLocation = support.dropLocation as? JTree.DropLocation ?: return false
+            val path = dropLocation.path ?: return false
+            val targetNode = path.lastPathComponent as? DefaultMutableTreeNode ?: return false
+            val targetFile = targetNode.userObjectAsFileNode()?.file ?: return false
+            val source = sourceFromSupport(support) ?: return false
+
+            val destDir = if (targetFile.isDirectory) targetFile else targetFile.parentFile ?: return false
+            val destFile = File(destDir, source.name)
+            if (destFile.exists()) {
+                val kind = if (source.isDirectory) "directory" else "file"
+                Messages.showErrorDialog(
+                    project,
+                    "A $kind with the same name already exists at destination: ${destFile.path}",
+                    "Move"
+                )
+                return false
+            }
+
+            val sourceVf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(source) ?: return false
+            val destVf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(destDir) ?: return false
+
+            try {
+                WriteCommandAction.runWriteCommandAction(project) {
+                    sourceVf.move(this, destVf)
+                }
+            } catch (ex: Exception) {
+                Messages.showErrorDialog(project, "Failed to move: ${ex.message}", "Move")
+                return false
+            }
+            refreshAndSelect(destFile.absolutePath)
+            return true
+        }
+
+        private fun sourceFromSupport(support: TransferSupport): File? {
+            return try {
+                support.transferable.getTransferData(flavor) as? File
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        private fun isAncestor(ancestor: File, descendant: File): Boolean {
+            var current: File? = descendant
+            while (current != null) {
+                if (current == ancestor) return true
+                current = current.parentFile
+            }
+            return false
+        }
+    }
+
+    private class FileTransferable(
+        private val file: File,
+        private val flavor: DataFlavor
+    ) : Transferable {
+        override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(flavor)
+        override fun isDataFlavorSupported(f: DataFlavor): Boolean = f == flavor
+        override fun getTransferData(f: DataFlavor): Any {
+            if (f != flavor) throw UnsupportedFlavorException(f)
+            return file
+        }
+    }
+
+    private inner class DeleteSelectedAction : AnAction(
+        "Delete",
+        "Delete the selected file or directory",
+        AllIcons.Actions.GC
+    ) {
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+        override fun update(e: AnActionEvent) {
+            val selected = selectedFile()
+            val root = (rootNode.userObject as? FileNode)?.file
+            e.presentation.isEnabled = selected != null && selected != root
+        }
+
+        override fun actionPerformed(e: AnActionEvent) {
+            val selected = selectedFile() ?: return
+            val root = (rootNode.userObject as? FileNode)?.file
+            if (selected == root) return
+
+            val kind = if (selected.isDirectory) "Directory" else "File"
+            val result = Messages.showYesNoDialog(
+                project,
+                "Delete ${selected.name}?" + if (selected.isDirectory) "\n(Files within will also be deleted)" else "",
+                "Delete $kind",
+                Messages.getWarningIcon()
+            )
+            if (result != Messages.YES) return
+
+            val vf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(selected) ?: return
+            val parentPath = selected.parentFile?.absolutePath
+            try {
+                WriteCommandAction.runWriteCommandAction(project) {
+                    vf.delete(this)
+                }
+            } catch (ex: Exception) {
+                Messages.showErrorDialog(project, "Failed to delete: ${ex.message}", "Delete")
+                return
+            }
+            if (parentPath != null) {
+                refreshAndSelect(parentPath)
+            } else {
+                refreshTree()
+            }
+        }
+    }
+
+    private class FileNameInputValidator(
+        private val parentDir: File,
+        private val ignoreExisting: File? = null
+    ) : InputValidator {
+        override fun checkInput(inputString: String?): Boolean {
+            val name = inputString?.trim().orEmpty()
+            if (name.isEmpty()) return false
+            if (name.contains('/') || name.contains('\\')) return false
+            if (name == "." || name == "..") return false
+            val candidate = File(parentDir, name)
+            if (candidate.exists() && candidate != ignoreExisting) return false
+            return true
+        }
+
+        override fun canClose(inputString: String?): Boolean = checkInput(inputString)
     }
 }
