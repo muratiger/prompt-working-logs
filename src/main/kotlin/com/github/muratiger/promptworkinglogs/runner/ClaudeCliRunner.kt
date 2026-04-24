@@ -11,13 +11,16 @@ import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowManager
 import com.google.gson.JsonParser
 import com.google.gson.JsonSyntaxException
+import java.io.File
 
 object ClaudeCliRunner {
 
@@ -100,6 +103,9 @@ object ClaudeCliRunner {
                     // ファイルの親ディレクトリを再帰的にリフレッシュ（新規作成ファイル・ディレクトリもProject viewに反映）
                     file.parent?.refresh(true, true)
 
+                    // dirPath 配下に生成された最新の md を検知してサービスに反映
+                    detectLatestResultMd(project, basePath, dirPath)
+
                     if (event.exitCode != 0) {
                         NotificationGroupManager.getInstance()
                             .getNotificationGroup("prompt-work")
@@ -131,6 +137,19 @@ object ClaudeCliRunner {
                     NotificationType.ERROR
                 )
                 .notify(project)
+        }
+    }
+
+    private fun detectLatestResultMd(project: Project, basePath: String, dirPath: String) {
+        val dirFile = File(basePath, dirPath.removeSuffix("/"))
+        if (!dirFile.exists() || !dirFile.isDirectory) return
+        val latestMd = dirFile.listFiles()
+            ?.filter { it.isFile && it.name.endsWith(".md") }
+            ?.maxByOrNull { it.lastModified() }
+            ?: return
+        val vf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(latestMd) ?: return
+        ApplicationManager.getApplication().invokeLater {
+            ClaudeConsoleService.getInstance(project).setLatestResultFile(vf)
         }
     }
 
