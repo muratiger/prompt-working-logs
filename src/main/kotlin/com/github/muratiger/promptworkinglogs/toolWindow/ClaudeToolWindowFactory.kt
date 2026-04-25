@@ -90,6 +90,12 @@ private class ClaudeConsolePanel(
         }
     }
 
+    private val showConsoleListener: () -> Unit = {
+        ApplicationManager.getApplication().invokeLater {
+            setShowingResult(false)
+        }
+    }
+
     init {
         service.console = console
 
@@ -115,7 +121,6 @@ private class ClaudeConsolePanel(
         toolbar.targetComponent = this
 
         val headerBar = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2))
-        headerBar.add(JBLabel("prompt-work"))
         val headerToolbar = ActionManager.getInstance()
             .createActionToolbar("PromptWorkHeaderToolbar", DefaultActionGroup(toggleResultAction), true)
         headerToolbar.targetComponent = this
@@ -128,11 +133,12 @@ private class ClaudeConsolePanel(
         toolWindow.setTitleActions(emptyList())
         try {
             toolWindow.title = ""
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             // Older platforms may not allow clearing the title; safe to ignore.
         }
 
         service.addResultFileListener(resultListener)
+        service.addShowConsoleListener(showConsoleListener)
         updateResultView(service.latestResultFile)
     }
 
@@ -172,9 +178,9 @@ private class ClaudeConsolePanel(
         val log = thisLogger()
         val providers = try {
             FileEditorProviderManager.getInstance().getProviderList(project, file)
-        } catch (e: Throwable) {
-            log.warn("Failed to load provider list for ${file.path}", e)
-            return PreviewResult(null, "provider list error: ${e.javaClass.simpleName}")
+        } catch (e: Exception) {
+            log.error("Failed to load provider list for ${file.path}", e)
+            return PreviewResult(null, "provider list error: ${e.message ?: e.javaClass.simpleName}")
         }
 
         val providerIds = providers.map { it.editorTypeId }
@@ -183,22 +189,19 @@ private class ClaudeConsolePanel(
         val preferred = providers.firstOrNull { it.editorTypeId == MARKDOWN_PREVIEW_EDITOR_TYPE_ID }
             ?: providers.firstOrNull { it.editorTypeId == MARKDOWN_SPLIT_EDITOR_TYPE_ID }
             ?: providers.firstOrNull { it.editorTypeId.contains("markdown", ignoreCase = true) }
-
-        if (preferred == null) {
-            return PreviewResult(null, "no markdown provider (available: ${providerIds.joinToString()})")
-        }
+            ?: return PreviewResult(null, "no markdown provider (available: ${providerIds.joinToString()})")
 
         val editor = try {
             preferred.createEditor(project, file)
-        } catch (e: Throwable) {
-            log.warn("createEditor failed for ${preferred.editorTypeId} on ${file.path}", e)
-            return PreviewResult(null, "createEditor failed (${preferred.editorTypeId}): ${e.javaClass.simpleName}")
+        } catch (e: Exception) {
+            log.error("createEditor failed for ${preferred.editorTypeId} on ${file.path}", e)
+            return PreviewResult(null, "createEditor failed (${preferred.editorTypeId}): ${e.message ?: e.javaClass.simpleName}")
         }
 
         if (editor is TextEditorWithPreview) {
             try {
                 editor.setLayout(TextEditorWithPreview.Layout.SHOW_PREVIEW)
-            } catch (e: Throwable) {
+            } catch (e: Exception) {
                 log.warn("Failed to switch to SHOW_PREVIEW layout", e)
             }
         }
@@ -207,6 +210,7 @@ private class ClaudeConsolePanel(
 
     fun dispose() {
         service.removeResultFileListener(resultListener)
+        service.removeShowConsoleListener(showConsoleListener)
         currentResultFileEditor?.let { Disposer.dispose(it) }
         currentResultFileEditor = null
     }

@@ -2,6 +2,7 @@ package com.github.muratiger.promptworkinglogs.action
 
 import com.github.muratiger.promptworkinglogs.runner.ClaudeCliRunner
 import com.github.muratiger.promptworkinglogs.settings.SimpleSettings
+import com.github.muratiger.promptworkinglogs.util.ProjectPaths
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -34,8 +35,8 @@ class RunClaudeAction : AnAction() {
             if (!file.name.endsWith(".md")) return false
             val basePath = project.basePath ?: return false
             val watchedDir = SimpleSettings.getInstance().state.watchedDirectory
-            val relativePath = file.path.removePrefix(basePath).removePrefix("/")
-            return relativePath.startsWith(watchedDir)
+            val relativePath = ProjectPaths.relativeFilePath(basePath, file) ?: return false
+            return ProjectPaths.isUnderWatchedDir(relativePath, watchedDir)
         }
     }
 }
