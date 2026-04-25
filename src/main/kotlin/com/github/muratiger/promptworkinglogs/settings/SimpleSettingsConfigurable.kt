@@ -12,24 +12,26 @@ import javax.swing.JScrollPane
 
 class SimpleSettingsConfigurable : Configurable {
 
-    private var watchedDirectoryField: JBTextField? = null
-    private var cliCommandArea: JBTextArea? = null
+    private lateinit var watchedDirectoryField: JBTextField
+    private lateinit var cliCommandArea: JBTextArea
 
     override fun getDisplayName(): String = "Prompt Work"
 
     override fun createComponent(): JComponent {
-        watchedDirectoryField = JBTextField()
-        cliCommandArea = JBTextArea(5, 50).apply {
+        val watchedField = JBTextField()
+        val commandArea = JBTextArea(CLI_COMMAND_ROWS, CLI_COMMAND_COLUMNS).apply {
             lineWrap = true
             wrapStyleWord = true
         }
+        watchedDirectoryField = watchedField
+        cliCommandArea = commandArea
 
         val commandPanel = JPanel(BorderLayout()).apply {
-            add(JScrollPane(cliCommandArea), BorderLayout.CENTER)
+            add(JScrollPane(commandArea), BorderLayout.CENTER)
         }
 
         return FormBuilder.createFormBuilder()
-            .addLabeledComponent(JBLabel("Watched Directory:"), watchedDirectoryField!!, 1, false)
+            .addLabeledComponent(JBLabel("Watched Directory:"), watchedField, 1, false)
             .addComponent(JBLabel("監視対象ディレクトリ（プロジェクトルートからの相対パス）"))
             .addSeparator()
             .addLabeledComponent(JBLabel("CLI Command:"), commandPanel, 1, true)
@@ -40,25 +42,32 @@ class SimpleSettingsConfigurable : Configurable {
     }
 
     override fun isModified(): Boolean {
+        if (!::watchedDirectoryField.isInitialized) return false
         val settings = SimpleSettings.getInstance()
-        return watchedDirectoryField?.text != settings.state.watchedDirectory ||
-                cliCommandArea?.text != settings.state.cliCommand
+        return watchedDirectoryField.text != settings.state.watchedDirectory ||
+                cliCommandArea.text != settings.state.cliCommand
     }
 
     override fun apply() {
+        if (!::watchedDirectoryField.isInitialized) return
         val settings = SimpleSettings.getInstance()
-        settings.state.watchedDirectory = watchedDirectoryField?.text ?: settings.state.watchedDirectory
-        settings.state.cliCommand = cliCommandArea?.text ?: settings.state.cliCommand
+        settings.state.watchedDirectory = watchedDirectoryField.text
+        settings.state.cliCommand = cliCommandArea.text
     }
 
     override fun reset() {
+        if (!::watchedDirectoryField.isInitialized) return
         val settings = SimpleSettings.getInstance()
-        watchedDirectoryField?.text = settings.state.watchedDirectory
-        cliCommandArea?.text = settings.state.cliCommand
+        watchedDirectoryField.text = settings.state.watchedDirectory
+        cliCommandArea.text = settings.state.cliCommand
     }
 
     override fun disposeUIResources() {
-        watchedDirectoryField = null
-        cliCommandArea = null
+        // lateinit fields cannot be reset to null; component lifecycle is owned by the IDE.
+    }
+
+    companion object {
+        private const val CLI_COMMAND_ROWS = 5
+        private const val CLI_COMMAND_COLUMNS = 50
     }
 }
