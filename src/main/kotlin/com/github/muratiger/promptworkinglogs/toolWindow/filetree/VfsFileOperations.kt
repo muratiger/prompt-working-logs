@@ -10,18 +10,23 @@ import com.intellij.openapi.vfs.VirtualFile
 import java.io.File
 
 /**
- * VirtualFileSystem ベースの [FileOperations] 既定実装。WriteCommandAction
- * 配下で実行することで undo / IDE インデックス整合性を確保する。
- * VFS API の `requestor` 引数には本インスタンスを渡し、変更元を識別可能にする。
+ * Default [FileOperations] implementation backed by the VirtualFileSystem.
+ * Executes under WriteCommandAction to preserve undo and IDE index consistency.
+ * Passes this instance as the `requestor` argument to VFS APIs so the change
+ * source is identifiable.
  */
 internal class VfsFileOperations(private val project: Project) : FileOperations {
 
-    override fun createFile(parentDir: File, name: String): FileOperationResult {
+    override fun createFile(parentDir: File, name: String, initialContent: String?): FileOperationResult {
         val parentVf = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(parentDir)
             ?: return FileOperationResult.Failure("Parent directory not available: ${parentDir.path}")
         return try {
             val created = WriteCommandAction.runWriteCommandAction<VirtualFile>(project) {
-                parentVf.createChildData(this, name)
+                val file = parentVf.createChildData(this, name)
+                if (initialContent != null) {
+                    file.setBinaryContent(initialContent.toByteArray(Charsets.UTF_8))
+                }
+                file
             }
             FileOperationResult.Success(created.path)
         } catch (ex: Exception) {

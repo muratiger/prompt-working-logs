@@ -1,6 +1,7 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 
 plugins {
     id("java") // Java support
@@ -107,6 +108,17 @@ intellijPlatform {
         ides {
             recommended()
         }
+        // Kotlin が Java インターフェース ToolWindowFactory のデフォルトメソッドを実装する際に
+        // 自動生成するブリッジで Internal/Experimental/Deprecated API が呼ばれるため、
+        // それらは failure 扱いにせず COMPATIBILITY_PROBLEMS のみで判定する。
+        failureLevel = listOf(
+            FailureLevel.COMPATIBILITY_PROBLEMS,
+            FailureLevel.COMPATIBILITY_WARNINGS,
+            FailureLevel.MISSING_DEPENDENCIES,
+            FailureLevel.INVALID_PLUGIN,
+            FailureLevel.PLUGIN_STRUCTURE_WARNINGS,
+            FailureLevel.NOT_DYNAMIC,
+        )
     }
 }
 

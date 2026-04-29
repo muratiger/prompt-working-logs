@@ -40,17 +40,18 @@ object ClaudeCliRunner {
         val basePath = project.basePath ?: return
         val relativePath = ProjectPaths.relativeFilePath(basePath, file) ?: return
 
-        // ファイル名と同じ名前のディレクトリパス（拡張子除去・末尾 '/'）
+        // Directory path with the same name as the file (extension stripped, trailing '/').
         val dirPath = relativePath.substringBeforeLast(".") + "/"
 
         val command = settings.state.cliCommand
             .replace("\${filePath}", relativePath)
             .replace("\${dirPath}", dirPath)
+            .replace("\${language}", settings.state.outputLanguage)
 
         ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)?.show()
 
         val service = ClaudeConsoleService.getInstance(project)
-        // 直前の実行で Result MD 表示に切り替わっていてもログ画面を前面に戻す。
+        // Bring the log view back to the front even if the previous run switched to the Result MD view.
         service.requestShowConsole()
         service.console?.clear()
 
@@ -67,7 +68,7 @@ object ClaudeCliRunner {
             handler.startNotify()
         } catch (e: Exception) {
             thisLogger().warn("Failed to start Claude CLI process", e)
-            notify(project, "Claude CLI エラー", e.message ?: "不明なエラー", NotificationType.ERROR)
+            notify(project, "Claude CLI error", e.message ?: "Unknown error", NotificationType.ERROR)
         }
     }
 
@@ -110,7 +111,7 @@ object ClaudeCliRunner {
             val service = ClaudeConsoleService.getInstance(project)
             service.processHandler = null
 
-            // Project view 反映のため親ディレクトリを再帰リフレッシュ。
+            // Recursively refresh the parent directory so the Project view picks up changes.
             file.parent?.refresh(true, true)
 
             detectLatestResultMd(project, basePath, dirPath)
@@ -118,15 +119,15 @@ object ClaudeCliRunner {
             if (event.exitCode != 0) {
                 notify(
                     project,
-                    "Claude CLI 失敗",
-                    "終了コード: ${event.exitCode}。詳細は 'Claude Runner' ツールウィンドウを確認してください。",
+                    "Claude CLI failed",
+                    "Exit code: ${event.exitCode}. See the 'Claude Runner' tool window for details.",
                     NotificationType.ERROR
                 )
             } else {
                 notify(
                     project,
-                    "Claude CLI 完了",
-                    "ファイル更新: $relativePath",
+                    "Claude CLI finished",
+                    "File updated: $relativePath",
                     NotificationType.INFORMATION
                 )
             }

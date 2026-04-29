@@ -35,7 +35,7 @@ class ClaudeConsoleService {
 
     fun setLatestResultFile(file: VirtualFile?) {
         latestResultFile = file
-        // CopyOnWriteArrayList のスナップショット iterator を使うので追加要素は無視され安全。
+        // CopyOnWriteArrayList's snapshot iterator ignores newly added elements, so this is safe.
         resultFileListeners.forEach { it.invoke(file) }
     }
 
@@ -47,7 +47,7 @@ class ClaudeConsoleService {
         resultFileListeners.remove(listener)
     }
 
-    /** 実行ログ画面を前面に出すよう購読側へ要求する。 */
+    /** Requests subscribers to bring the execution log view to the front. */
     fun requestShowConsole() {
         showConsoleListeners.forEach { it.invoke() }
     }

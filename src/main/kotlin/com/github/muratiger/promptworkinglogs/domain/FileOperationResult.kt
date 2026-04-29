@@ -1,8 +1,9 @@
 package com.github.muratiger.promptworkinglogs.domain
 
 /**
- * [FileOperations] の戻り値。成功時は対象になった絶対パスを保持する（UI 側で
- * 直後の選択処理に使う）。失敗時はユーザーに表示するメッセージを保持する。
+ * Return type for [FileOperations]. On success, holds the absolute path of the
+ * affected target (used by the UI for the immediately following selection).
+ * On failure, holds the message to display to the user.
  */
 sealed class FileOperationResult {
     data class Success(val resultPath: String) : FileOperationResult()

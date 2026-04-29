@@ -7,12 +7,14 @@ import com.google.gson.JsonParser
 import com.google.gson.JsonSyntaxException
 
 /**
- * Claude CLI `--output-format stream-json` の 1 行を [OutputEvent] に解析し、
- * 人間可読な日本語テキストへ整形する [OutputEventFormatter] 実装。
+ * [OutputEventFormatter] implementation that parses a single line of Claude CLI
+ * `--output-format stream-json` into an [OutputEvent] and formats it into
+ * human-readable English text.
  *
- * 既存テスト互換性のため、純関数のクラスとして提供する（`object` から
- * `class` へ変更し、コンストラクタ引数なしで `JsonOutputFormatter()` でも、
- * `companion object` の `format(line)` でもアクセスできる）。
+ * Provided as a pure-function class for compatibility with existing tests
+ * (changed from `object` to `class` so it can be accessed both via
+ * `JsonOutputFormatter()` with no constructor arguments and via the
+ * `companion object`'s `format(line)`).
  */
 class JsonOutputFormatter : OutputEventFormatter {
 
@@ -21,19 +23,19 @@ class JsonOutputFormatter : OutputEventFormatter {
     companion object {
         private const val EDIT_CONTENT_PREVIEW_MIN_LENGTH = 10
         private const val MILLIS_TO_SECONDS = 1000.0
-        private const val DURATION_FORMAT = "%.1f秒"
+        private const val DURATION_FORMAT = "%.1fs"
         private const val COST_FORMAT = "$%.4f"
 
-        private val TOOL_NAME_JA: Map<String, String> = mapOf(
-            "Read" to "ファイル読み込み",
-            "Edit" to "ファイル編集",
-            "Write" to "ファイル作成",
-            "Bash" to "コマンド実行",
-            "Glob" to "ファイル検索",
-            "Grep" to "テキスト検索",
-            "WebSearch" to "Web検索",
-            "WebFetch" to "Webページ取得",
-            "Task" to "タスク実行",
+        private val TOOL_NAME_LABELS: Map<String, String> = mapOf(
+            "Read" to "Read file",
+            "Edit" to "Edit file",
+            "Write" to "Create file",
+            "Bash" to "Run command",
+            "Glob" to "Find files",
+            "Grep" to "Search text",
+            "WebSearch" to "Web search",
+            "WebFetch" to "Fetch web page",
+            "Task" to "Run task",
         )
 
         fun format(line: String): String? {
@@ -42,7 +44,8 @@ class JsonOutputFormatter : OutputEventFormatter {
         }
 
         /**
-         * stream-json 1 行を [OutputEvent] に変換する。表示しない行は null を返す。
+         * Converts a single stream-json line into an [OutputEvent]. Returns null
+         * for lines that should not be displayed.
          */
         fun parse(line: String): OutputEvent? {
             if (line.isBlank()) return null
@@ -63,27 +66,27 @@ class JsonOutputFormatter : OutputEventFormatter {
         }
 
         fun render(event: OutputEvent): String = when (event) {
-            is OutputEvent.SystemInit -> "🚀 セッション開始 (モデル: ${event.model})"
-            is OutputEvent.AssistantText -> "💬 応答:\n${event.text}"
-            is OutputEvent.AssistantThinking -> "🧠 思考中:\n${event.text}"
+            is OutputEvent.SystemInit -> "🚀 Session started (model: ${event.model})"
+            is OutputEvent.AssistantText -> "💬 Response:\n${event.text}"
+            is OutputEvent.AssistantThinking -> "🧠 Thinking:\n${event.text}"
             is OutputEvent.ToolUse -> renderToolUse(event)
-            OutputEvent.ToolResultSuccess -> "✅ ツール実行完了"
-            OutputEvent.ToolResultError -> "❌ ツール実行エラー"
+            OutputEvent.ToolResultSuccess -> "✅ Tool execution completed"
+            OutputEvent.ToolResultError -> "❌ Tool execution failed"
             is OutputEvent.ResultSuccess -> {
                 val durationSec = event.durationMs / MILLIS_TO_SECONDS
-                "✨ 完了 (所要時間: ${DURATION_FORMAT.format(durationSec)}, " +
-                    "ターン数: ${event.numTurns}, コスト: ${COST_FORMAT.format(event.totalCostUsd)})"
+                "✨ Completed (duration: ${DURATION_FORMAT.format(durationSec)}, " +
+                    "turns: ${event.numTurns}, cost: ${COST_FORMAT.format(event.totalCostUsd)})"
             }
-            OutputEvent.ResultError -> "❌ エラー発生"
-            is OutputEvent.ResultOther -> "📋 結果: ${event.subtype}"
+            OutputEvent.ResultError -> "❌ Error occurred"
+            is OutputEvent.ResultOther -> "📋 Result: ${event.subtype}"
             is OutputEvent.RawText -> event.text
         }
 
         private fun renderToolUse(event: OutputEvent.ToolUse): String {
-            val nameLabel = TOOL_NAME_JA[event.toolName] ?: event.toolName
+            val nameLabel = TOOL_NAME_LABELS[event.toolName] ?: event.toolName
             val preview = event.editPreview
             if (preview != null) {
-                return "🔧 $nameLabel: ${event.description}\n📝 追記内容:\n$preview"
+                return "🔧 $nameLabel: ${event.description}\n📝 New content:\n$preview"
             }
             return "🔧 $nameLabel" + if (event.description.isNotEmpty()) " (${event.description})" else ""
         }
@@ -91,7 +94,7 @@ class JsonOutputFormatter : OutputEventFormatter {
         private fun parseSystem(json: JsonObject): OutputEvent? {
             val subtype = json.get("subtype")?.asString ?: return null
             return when (subtype) {
-                "init" -> OutputEvent.SystemInit(json.get("model")?.asString ?: "不明")
+                "init" -> OutputEvent.SystemInit(json.get("model")?.asString ?: "unknown")
                 else -> null
             }
         }
@@ -121,7 +124,7 @@ class JsonOutputFormatter : OutputEventFormatter {
         }
 
         private fun parseToolUse(item: JsonObject): OutputEvent.ToolUse? {
-            val toolName = item.get("name")?.asString ?: "不明"
+            val toolName = item.get("name")?.asString ?: "unknown"
             val input = item.getAsJsonObject("input")
             val description = input?.get("description")?.asString
                 ?: input?.get("command")?.asString

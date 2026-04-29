@@ -8,8 +8,9 @@ import org.junit.Assert.assertSame
 import org.junit.Test
 
 /**
- * stream-json 1 行を [OutputEvent] に分解する parse 段と、parse 結果から
- * 文字列を生成する render 段の分離をテストする。
+ * Tests the separation between the parse stage that decomposes a single
+ * stream-json line into an [OutputEvent] and the render stage that produces
+ * a string from the parse result.
  */
 class JsonOutputFormatterParseTest {
 
@@ -55,11 +56,11 @@ class JsonOutputFormatterParseTest {
     @Test
     fun `render SystemInit and ResultSuccess match format outputs`() {
         assertEquals(
-            "🚀 セッション開始 (モデル: opus)",
+            "🚀 Session started (model: opus)",
             JsonOutputFormatter.render(OutputEvent.SystemInit("opus"))
         )
         assertEquals(
-            "✨ 完了 (所要時間: 1.2秒, ターン数: 2, コスト: \$0.5000)",
+            "✨ Completed (duration: 1.2s, turns: 2, cost: \$0.5000)",
             JsonOutputFormatter.render(OutputEvent.ResultSuccess(1234L, 2, 0.5))
         )
     }
@@ -68,7 +69,7 @@ class JsonOutputFormatterParseTest {
     fun `formatter via interface delegates to companion`() {
         val formatter: OutputEventFormatter = JsonOutputFormatter()
         assertEquals(
-            "🚀 セッション開始 (モデル: opus)",
+            "🚀 Session started (model: opus)",
             formatter.format("""{"type":"system","subtype":"init","model":"opus"}""")
         )
         assertNull(formatter.format(""))

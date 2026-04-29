@@ -3,13 +3,13 @@ package com.github.muratiger.promptworkinglogs.domain
 import java.io.File
 
 /**
- * prompt-files ツリー上のファイル/ディレクトリ操作を抽象化する。Action クラスを
- * inner class から脱出させるため、UI 層から VirtualFileSystem への直接依存を
- * このインターフェース経由に集約する。エラー UI は呼び出し側 (Action) が担当し、
- * 本インターフェースは結果を [FileOperationResult] で返すだけにする。
+ * Abstracts file/directory operations on the prompt-files tree. To extract the
+ * Action classes out of inner classes, this interface centralizes the UI layer's
+ * direct dependency on VirtualFileSystem. Error UI is handled by the caller
+ * (Action); this interface only returns the result as [FileOperationResult].
  */
 interface FileOperations {
-    fun createFile(parentDir: File, name: String): FileOperationResult
+    fun createFile(parentDir: File, name: String, initialContent: String? = null): FileOperationResult
     fun createDirectory(parentDir: File, name: String): FileOperationResult
     fun rename(target: File, newName: String): FileOperationResult
     fun moveTo(target: File, destinationDir: File): FileOperationResult
