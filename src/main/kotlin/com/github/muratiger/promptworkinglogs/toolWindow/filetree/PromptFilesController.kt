@@ -4,26 +4,26 @@ import com.intellij.openapi.project.Project
 import java.io.File
 
 /**
- * prompt-files ツリーパネルの API 抽象。アクションクラスを inner class から
- * 切り出すために必要な panel 状態（選択中ファイル、ルート、再描画）を最小限に
- * 公開する。実装は [com.github.muratiger.promptworkinglogs.toolwindow.PromptFilesToolWindowFactory]
- * 内部のパネルが担う。
+ * API abstraction for the prompt-files tree panel. Exposes the minimal panel
+ * state (selected file, root, redraw) required to extract the action classes
+ * out of inner classes. The implementation is the panel inside
+ * [com.github.muratiger.promptworkinglogs.toolwindow.PromptFilesToolWindowFactory].
  */
 interface PromptFilesController {
     val project: Project
 
-    /** 現在ツリーで選択されているファイル/ディレクトリ。未選択時は null。 */
+    /** The file/directory currently selected in the tree. Null when no selection. */
     fun selectedFile(): File?
 
-    /** ツリーのルートディレクトリ（監視対象ディレクトリ）。未存在時は null。 */
+    /** The tree's root directory (the watched directory). Null when it does not exist. */
     fun rootFile(): File?
 
-    /** 新規作成の対象となるディレクトリ。選択がディレクトリならそれ、ファイルなら親、未選択ならルート。 */
+    /** Target directory for new entries: the selection if it is a directory, its parent if a file, or the root when nothing is selected. */
     fun targetDirectoryForCreation(): File?
 
-    /** ツリー全体を再構築し、指定パスを選択状態にする。 */
+    /** Rebuilds the entire tree and selects the given path. */
     fun refreshAndSelect(absolutePath: String)
 
-    /** ツリー全体を再構築する。 */
+    /** Rebuilds the entire tree. */
     fun refreshTree()
 }

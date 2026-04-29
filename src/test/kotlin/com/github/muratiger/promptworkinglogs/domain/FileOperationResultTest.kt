@@ -5,9 +5,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * [FileOperationResult] / [FileOperations] の最低限の不変条件を確認する。
- * 実 IO を伴う操作は BasePlatformTestCase 上の統合テスト送り。ここでは
- * sealed class の sub-type 判定とフェイク実装の差し替えやすさを担保する。
+ * Verifies the minimal invariants of [FileOperationResult] / [FileOperations].
+ * Operations involving real IO belong to integration tests on top of
+ * BasePlatformTestCase; here we cover sealed-class sub-type detection and
+ * the ease of substituting fake implementations.
  */
 class FileOperationResultTest {
 

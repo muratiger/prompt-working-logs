@@ -21,13 +21,13 @@ class JsonOutputFormatterTest {
     @Test
     fun `system init produces session start with model`() {
         val line = """{"type":"system","subtype":"init","model":"claude-opus"}"""
-        assertEquals("🚀 セッション開始 (モデル: claude-opus)", JsonOutputFormatter.format(line))
+        assertEquals("🚀 Session started (model: claude-opus)", JsonOutputFormatter.format(line))
     }
 
     @Test
     fun `system init defaults model when missing`() {
         val line = """{"type":"system","subtype":"init"}"""
-        assertEquals("🚀 セッション開始 (モデル: 不明)", JsonOutputFormatter.format(line))
+        assertEquals("🚀 Session started (model: unknown)", JsonOutputFormatter.format(line))
     }
 
     @Test
@@ -38,25 +38,25 @@ class JsonOutputFormatterTest {
     @Test
     fun `assistant text content is rendered as response`() {
         val line = """{"type":"assistant","message":{"content":[{"type":"text","text":"hello"}]}}"""
-        assertEquals("💬 応答:\nhello", JsonOutputFormatter.format(line))
+        assertEquals("💬 Response:\nhello", JsonOutputFormatter.format(line))
     }
 
     @Test
     fun `assistant thinking content is rendered`() {
-        val line = """{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"考え中"}]}}"""
-        assertEquals("🧠 思考中:\n考え中", JsonOutputFormatter.format(line))
+        val line = """{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"thinking..."}]}}"""
+        assertEquals("🧠 Thinking:\nthinking...", JsonOutputFormatter.format(line))
     }
 
     @Test
-    fun `tool_use translates known tool names to japanese`() {
+    fun `tool_use translates known tool names to english labels`() {
         val line = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"a.md"}}]}}"""
-        assertEquals("🔧 ファイル読み込み (a.md)", JsonOutputFormatter.format(line))
+        assertEquals("🔧 Read file (a.md)", JsonOutputFormatter.format(line))
     }
 
     @Test
     fun `tool_use without description omits parens`() {
         val line = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{}}]}}"""
-        assertEquals("🔧 コマンド実行", JsonOutputFormatter.format(line))
+        assertEquals("🔧 Run command", JsonOutputFormatter.format(line))
     }
 
     @Test
@@ -70,38 +70,38 @@ class JsonOutputFormatterTest {
         val newString = "1234567890123" // length > 10
         val line = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"x.md","new_string":"$newString"}}]}}"""
         val out = JsonOutputFormatter.format(line)
-        assertTrue(out, out!!.contains("📝 追記内容:"))
+        assertTrue(out, out!!.contains("📝 New content:"))
         assertTrue(out, out.contains(newString))
     }
 
     @Test
     fun `Edit with short new_string falls back to summary line`() {
         val line = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"x.md","new_string":"short"}}]}}"""
-        assertEquals("🔧 ファイル編集 (x.md)", JsonOutputFormatter.format(line))
+        assertEquals("🔧 Edit file (x.md)", JsonOutputFormatter.format(line))
     }
 
     @Test
     fun `tool_result success rendered`() {
         val line = """{"type":"user","message":{"content":[{"type":"tool_result","is_error":false}]}}"""
-        assertEquals("✅ ツール実行完了", JsonOutputFormatter.format(line))
+        assertEquals("✅ Tool execution completed", JsonOutputFormatter.format(line))
     }
 
     @Test
     fun `tool_result error rendered`() {
         val line = """{"type":"user","message":{"content":[{"type":"tool_result","is_error":true}]}}"""
-        assertEquals("❌ ツール実行エラー", JsonOutputFormatter.format(line))
+        assertEquals("❌ Tool execution failed", JsonOutputFormatter.format(line))
     }
 
     @Test
-    fun `result success line uses japanese number formatting`() {
+    fun `result success line uses english number formatting`() {
         val line = """{"type":"result","subtype":"success","duration_ms":2500,"num_turns":3,"total_cost_usd":0.1234}"""
-        assertEquals("✨ 完了 (所要時間: 2.5秒, ターン数: 3, コスト: \$0.1234)", JsonOutputFormatter.format(line))
+        assertEquals("✨ Completed (duration: 2.5s, turns: 3, cost: \$0.1234)", JsonOutputFormatter.format(line))
     }
 
     @Test
     fun `result error subtype rendered`() {
         val line = """{"type":"result","subtype":"error","duration_ms":0}"""
-        assertEquals("❌ エラー発生", JsonOutputFormatter.format(line))
+        assertEquals("❌ Error occurred", JsonOutputFormatter.format(line))
     }
 
     @Test

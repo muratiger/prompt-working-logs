@@ -243,15 +243,16 @@ private class PromptFilesPanel(
     }
 
     private fun applyLayout() {
-        // Splitter は setFirstComponent / setSecondComponent で内部的に remove → add を行うため、
-        // 同じコンポーネントを first ⇄ second で入れ替えると片方が意図せず remove されて表示が消える。
-        // 一旦両スロットを null にしてから新しい組み合わせを設定する。
+        // Splitter#setFirstComponent / setSecondComponent internally do remove -> add,
+        // so swapping the same component between first and second can unintentionally
+        // remove one side and make it disappear. Reset both slots to null first, then
+        // assign the new combination.
         splitter.firstComponent = null
         splitter.secondComponent = null
         contentWrapper.removeAll()
 
         if (!treeVisible) {
-            // ツリー非表示: エディタを contentWrapper に直接配置し、スペース全体を使う
+            // Tree hidden: place the editor directly in contentWrapper to use the full space.
             contentWrapper.add(editorContainer, BorderLayout.CENTER)
         } else {
             when (treePosition) {
@@ -490,9 +491,9 @@ private class PromptFilesPanel(
     }
 
     /**
-     * D&D 経由の移動。inner class のままにしているのは tree / TransferHandler の呼び出し
-     * 規約上、source/target を解決する処理が tree-coupled だから。実際の VFS 操作は
-     * [fileOps] に委譲する。
+     * Move via drag and drop. Kept as an inner class because the source/target
+     * resolution is tree-coupled by the tree / TransferHandler calling convention.
+     * The actual VFS operations are delegated to [fileOps].
      */
     private inner class TreeFileTransferHandler : TransferHandler() {
         private val flavor = DataFlavor(

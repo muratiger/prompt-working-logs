@@ -1,9 +1,9 @@
 package com.github.muratiger.promptworkinglogs.domain
 
 /**
- * Claude CLI `--output-format stream-json` の 1 行を表すドメインモデル。
- * パース結果はこの sealed class のいずれかに分類され、UI 表示用フォーマッタは
- * これを純粋なテキストへ変換する。
+ * Domain model representing a single line of Claude CLI `--output-format stream-json`
+ * output. Parse results are classified into one of this sealed class's variants,
+ * and the UI display formatter converts it into plain text.
  */
 sealed class OutputEvent {
     data class SystemInit(val model: String) : OutputEvent()

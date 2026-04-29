@@ -36,9 +36,14 @@ internal class NewFileAction(
         )?.trim().orEmpty()
         if (name.isEmpty()) return
 
-        when (val result = fileOps.createFile(dir, name)) {
+        val initialContent = if (name.endsWith(".md", ignoreCase = true)) MARKDOWN_TEMPLATE else null
+        when (val result = fileOps.createFile(dir, name, initialContent)) {
             is FileOperationResult.Success -> controller.refreshAndSelect(result.resultPath)
             is FileOperationResult.Failure -> Messages.showErrorDialog(controller.project, result.message, "New File")
         }
+    }
+
+    private companion object {
+        const val MARKDOWN_TEMPLATE = "# metadata\n\n\n# 1\n\n\n"
     }
 }
