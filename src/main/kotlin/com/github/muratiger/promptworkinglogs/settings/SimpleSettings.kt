@@ -33,11 +33,11 @@ class SimpleSettings : PersistentStateComponent<SimpleSettings.State> {
     }
 
     companion object {
-        const val CURRENT_DEFAULTS_VERSION = 2
+        const val CURRENT_DEFAULTS_VERSION = 3
 
         const val DEFAULT_WATCHED_DIRECTORY = "prompt-work"
         const val DEFAULT_CLI_COMMAND =
-            "\$HOME/.claude/local/claude -p \"Use the last section (excluding metadata sections) of \${filePath} as the prompt input. Append a 3-line summary of the output and the session ID at the end of that section. Please provide ALL output entirely in \${language}. This includes your internal thinking/reasoning process (the thinking sections must be written in \${language}). Output the processing logs and detailed results to the \${dirPath} directory as a markdown file named with the section name and current datetime.\" --dangerously-skip-permissions --output-format stream-json --verbose"
+            "\$HOME/.local/bin/claude -p \"Use the last section (excluding metadata sections) of \${filePath} as the prompt input. Append a 3-line summary of the output and the session ID at the end of that section. Please provide ALL output entirely in \${language}. This includes your internal thinking/reasoning process (the thinking sections must be written in \${language}). Output the processing logs and detailed results to the \${dirPath} directory as a markdown file named with the section name and current datetime.\" --dangerously-skip-permissions --output-format stream-json --verbose"
 
         const val LANGUAGE_ENGLISH = "English"
         const val LANGUAGE_JAPANESE = "Japanese"

@@ -2,10 +2,13 @@ package com.github.muratiger.promptworkinglogs.settings
 
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
+import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComponent
@@ -25,6 +28,10 @@ class SimpleSettingsConfigurable : Configurable {
         val commandArea = JBTextArea(CLI_COMMAND_ROWS, CLI_COMMAND_COLUMNS).apply {
             lineWrap = true
             wrapStyleWord = true
+            background = UIUtil.getTextFieldBackground()
+            foreground = UIUtil.getTextFieldForeground()
+            caretColor = UIUtil.getTextFieldForeground()
+            border = JBUI.Borders.empty(4, 6)
         }
         val languageComboBox = ComboBox(
             DefaultComboBoxModel(SimpleSettings.SUPPORTED_OUTPUT_LANGUAGES.toTypedArray())
@@ -34,20 +41,24 @@ class SimpleSettingsConfigurable : Configurable {
         outputLanguageComboBox = languageComboBox
 
         val commandPanel = JPanel(BorderLayout()).apply {
-            add(JScrollPane(commandArea), BorderLayout.CENTER)
+            val scrollPane = JScrollPane(commandArea).apply {
+                viewport.background = UIUtil.getTextFieldBackground()
+                border = JBUI.Borders.customLine(JBColor.border(), 1)
+            }
+            add(scrollPane, BorderLayout.CENTER)
         }
 
         return FormBuilder.createFormBuilder()
             .addLabeledComponent(JBLabel("Watched Directory:"), watchedField, 1, false)
-            .addComponent(JBLabel("監視対象ディレクトリ（プロジェクトルートからの相対パス）"))
+            .addComponent(JBLabel("Directory to watch (relative path from the project root)"))
             .addSeparator()
             .addLabeledComponent(JBLabel("Output Language:"), languageComboBox, 1, false)
-            .addComponent(JBLabel("実行ログの出力言語（\${language} に置換されます）"))
+            .addComponent(JBLabel("Output language for execution logs (replaces \${language})"))
             .addSeparator()
             .addLabeledComponent(JBLabel("CLI Command:"), commandPanel, 1, true)
-            .addComponent(JBLabel("\${filePath} は対象ファイルの相対パスに置換されます"))
-            .addComponent(JBLabel("\${dirPath} は対象ファイルと同名のディレクトリパス（拡張子除去・末尾 '/'）に置換されます"))
-            .addComponent(JBLabel("\${language} は Output Language の選択値に置換されます"))
+            .addComponent(JBLabel("\${filePath} is replaced with the relative path of the target file"))
+            .addComponent(JBLabel("\${dirPath} is replaced with the directory path matching the target file name (extension stripped, trailing '/')"))
+            .addComponent(JBLabel("\${language} is replaced with the selected Output Language value"))
             .addComponentFillVertically(JPanel(), 0)
             .panel
     }

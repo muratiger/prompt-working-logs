@@ -33,5 +33,14 @@
                 text="Run Claude Code"
                 description="Run Claude Code on current markdown file"
                 icon="/icons/claudeRun.svg"/>
+        <action id="com.github.muratiger.promptworkinglogs.ToggleClaudeToolWindowMaximizedAction"
+                class="com.github.muratiger.promptworkinglogs.action.ToggleClaudeToolWindowMaximizedAction"
+                text="Toggle Prompt Work Pane Fullscreen"
+                description="Maximize or restore the Prompt Work bottom tool window">
+            <keyboard-shortcut keymap="$default" first-keystroke="control alt A"/>
+            <keyboard-shortcut keymap="Mac OS X" first-keystroke="control alt A"/>
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="control alt A"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>
