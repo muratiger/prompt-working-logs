@@ -35,7 +35,7 @@ class FileOperationResultTest {
     @Test
     fun `interface allows fake implementations for action tests`() {
         val fake = object : FileOperations {
-            override fun createFile(parentDir: java.io.File, name: String): FileOperationResult =
+            override fun createFile(parentDir: java.io.File, name: String, initialContent: String?): FileOperationResult =
                 FileOperationResult.Success("${parentDir.path}/$name")
             override fun createDirectory(parentDir: java.io.File, name: String): FileOperationResult =
                 FileOperationResult.Success("${parentDir.path}/$name")

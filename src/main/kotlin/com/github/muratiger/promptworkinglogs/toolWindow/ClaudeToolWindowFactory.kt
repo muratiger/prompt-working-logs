@@ -33,6 +33,10 @@ class ClaudeToolWindowFactory : ToolWindowFactory, DumbAware {
         Disposer.register(content) { panel.dispose() }
         toolWindow.contentManager.addContent(content)
     }
+
+    companion object {
+        const val TOOL_WINDOW_ID: String = "prompt-work"
+    }
 }
 
 private const val CARD_CONSOLE = "console"
