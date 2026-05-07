@@ -65,6 +65,7 @@ object ClaudeCliRunner {
             handler.addProcessListener(
                 StreamingJsonListener(project, file, basePath, dirPath, relativePath, formatter)
             )
+            service.notifyRunStarted()
             handler.startNotify()
         } catch (e: Exception) {
             thisLogger().warn("Failed to start Claude CLI process", e)
@@ -110,6 +111,7 @@ object ClaudeCliRunner {
         override fun processTerminated(event: ProcessEvent) {
             val service = ClaudeConsoleService.getInstance(project)
             service.processHandler = null
+            service.notifyRunFinished()
 
             // Recursively refresh the parent directory so the Project view picks up changes.
             file.parent?.refresh(true, true)
