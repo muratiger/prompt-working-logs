@@ -20,144 +20,54 @@
     action (default shortcut: <code>Ctrl+Alt+W</code>) or the editor context menu.</li>
   <li><b>Streaming, formatted output</b> &mdash; The
     <code>--output-format stream-json</code> stream is parsed line by line and
-    rendered as readable session, assistant, thinking, tool-use, and result events,
-    so long-running prompts stay easy to follow.</li>
+    rendered as readable session, assistant, thinking, tool-use, and result events.</li>
   <li><b>Prompt file browser</b> &mdash; A dedicated tool window shows the watched
     directory as a tree with an embedded markdown editor and full create / rename /
     move / delete operations, including drag-and-drop.</li>
-  <li><b>Markdown template on creation</b> &mdash; New <code>.md</code> files inside
-    the watched directory are seeded with a starter template so you can start
-    writing right away.</li>
   <li><b>Auto-open latest result</b> &mdash; When a run finishes, the newly
     generated result markdown is opened in the editor automatically.</li>
-  <li><b>Output language toggle</b> &mdash; Choose between <b>English</b> and
-    <b>Japanese</b> from the settings page; the choice is injected into the prompt
-    template via a <code>${language}</code> placeholder.</li>
-</ul>
-
-<h3>Tool windows</h3>
-<ul>
-  <li><b>Prompt Work</b> (bottom) &mdash; Streams the live formatted output of the
-    running CLI, with a "Show Result MD" toggle to preview the latest generated
-    markdown and a Stop button to cancel a running process.</li>
-  <li><b>Prompt Files</b> (right) &mdash; Tree view of the watched directory with
-    an embedded markdown editor. Supports New File / New Directory, Rename
-    (<code>F2</code>), Move (<code>F6</code>), Delete, drag-and-drop, and
-    tree-position toggles.</li>
-</ul>
-
-<h3>Settings</h3>
-<p>Available under <b>Settings / Preferences &rarr; Tools &rarr; Prompt Work</b>:</p>
-<ul>
-  <li><b>Watched Directory</b> &mdash; Project-relative path that holds your prompt
-    markdown files. Only files inside this directory can be run.</li>
-  <li><b>CLI Command</b> &mdash; Full shell command used to invoke the Claude Code
-    CLI. The default invocation targets <code>$HOME/.local/bin/claude</code> and
-    passes <code>--dangerously-skip-permissions</code> together with
-    <code>--output-format stream-json --verbose</code>, which is the only
-    configuration verified for this release. The template variables
-    <code>${filePath}</code>, <code>${dirPath}</code>, and <code>${language}</code>
-    are available, but changing the binary path or removing
-    <code>--dangerously-skip-permissions</code> is not supported &mdash; the
-    plugin cannot answer interactive permission prompts.</li>
-  <li><b>Output Language</b> &mdash; <code>English</code> (default) or
-    <code>Japanese</code>. Injected into the prompt template so the response uses
-    your chosen language.</li>
-</ul>
-
-<h3>Requirements</h3>
-<ul>
-  <li><b>macOS</b> (Apple Silicon or Intel). Other operating systems are not
-    supported in this release.</li>
-  <li>The <a href="https://docs.claude.com/en/docs/claude-code">Claude Code CLI</a>
-    installed and launchable as <code>$HOME/.local/bin/claude</code>. The plugin
-    invokes that exact path; installations at other locations are not supported in
-    this release. The recommended installer is the official native installer
-    (<code>claude install</code>), which places the binary at
-    <code>$HOME/.local/bin/claude</code>.</li>
-  <li>IntelliJ-based IDE 2025.2 or later (build 252+).</li>
-  <li>Bundled <b>Markdown</b> support enabled in the IDE
-    (<code>org.intellij.plugins.markdown</code>).</li>
-  <li><b>Claude Code permissions configured for non-interactive use.</b> The
-    plugin runs the CLI headlessly and cannot answer interactive permission
-    prompts, so it relies on
-    <code>--dangerously-skip-permissions</code>. Operations that the plugin needs
-    to complete a run (in particular writing the generated result markdown into
-    your watched directory) must <b>not</b> be blocked by your Claude Code
-    settings (<code>~/.claude/settings.json</code>, <code>.claude/settings.json</code>,
-    or <code>.claude/settings.local.json</code>). Make sure the
-    <code>permissions.deny</code> list does not deny tools like <code>Write</code>
-    or <code>Edit</code> for your project, and add an explicit
-    <code>permissions.allow</code> entry if your environment hardens defaults
-    elsewhere.</li>
+  <li><b>Output language toggle</b> &mdash; Switch between <b>English</b> and
+    <b>Japanese</b> from the settings page.</li>
 </ul>
 
 <h3>Getting started</h3>
 <ol>
-  <li>Open a project and go to
-    <b>Settings / Preferences &rarr; Tools &rarr; Prompt Work</b>. Confirm the
-    <b>Watched Directory</b> (default <code>prompt-work</code>, relative to the
-    project root) and create the directory if it does not exist.</li>
+  <li>Open <b>Settings / Preferences &rarr; Tools &rarr; Prompt Work</b> and confirm
+    the <b>Watched Directory</b> (default <code>prompt-work</code>, relative to the
+    project root). Create the directory if it does not exist.</li>
   <li>Open the <b>Prompt Files</b> tool window and create a new <code>.md</code>
-    file inside the watched directory. The file is pre-filled with a starter
-    template.</li>
-  <li>Write your prompt content under the appropriate section.</li>
-  <li>Run with <code>Ctrl+Alt+W</code>, or right-click the file and choose
-    <b>Run Claude Code</b>.</li>
-  <li>The <b>Prompt Work</b> tool window opens automatically and streams the
-    response. When the run finishes, the generated result markdown opens in the
-    editor.</li>
+    file inside the watched directory.</li>
+  <li>Write your prompt, then run with <code>Ctrl+Alt+W</code> or right-click and
+    choose <b>Run Claude Code</b>. The <b>Prompt Work</b> tool window streams the
+    response and opens the generated result markdown when finished.</li>
 </ol>
 
-<h3>Notes on permissions</h3>
-<p>
-  <b>This plugin runs the Claude Code CLI with
-  <code>--dangerously-skip-permissions</code>.</b> Because the CLI is invoked
-  headlessly from the IDE and cannot show interactive permission prompts to you,
-  every tool call (file writes, edits, shell commands, network actions) that
-  Claude Code chooses to perform is auto-approved for the duration of the run.
-</p>
-<p>
-  <b>What this means for you:</b>
-</p>
+<h3>Requirements</h3>
 <ul>
-  <li>Treat each prompt file as if it had unattended write access to your
-    project. Review the prompt content and the <b>CLI Command</b> setting before
-    running, and keep the <b>Watched Directory</b> scoped to prompts you intend
-    to send.</li>
-  <li>The plugin cannot answer follow-up questions from the CLI. If a prompt
-    triggers a tool call that you would normally want to confirm, it will be
-    executed without confirmation.</li>
-  <li>Stop a runaway run with the <b>Stop</b> button in the <b>Prompt Work</b>
-    tool window.</li>
-</ul>
-<p>
-  <b>What you must configure on the Claude Code side:</b>
-</p>
-<ul>
-  <li>Make sure your Claude Code settings do <b>not</b> deny the operations the
-    plugin needs to finish a run. In particular, the plugin expects Claude Code
-    to be able to <b>write the generated result markdown</b> back into your
-    watched directory.</li>
-  <li>Check <code>permissions.deny</code> in
-    <code>~/.claude/settings.json</code>, <code>.claude/settings.json</code>, and
-    <code>.claude/settings.local.json</code>. If <code>Write</code>,
-    <code>Edit</code>, or paths under your project / watched directory are
-    denied there, runs may stream output but never produce the expected result
-    file.</li>
-  <li>If your environment hardens Claude Code defaults, add an explicit
-    <code>permissions.allow</code> entry for the watched directory (for
-    example: <code>"Write(./prompt-work/**)"</code>,
-    <code>"Edit(./prompt-work/**)"</code>) so the run can complete.</li>
-  <li><code>permissions.deny</code> takes precedence over
-    <code>--dangerously-skip-permissions</code>; the flag bypasses interactive
-    prompts but does not override an explicit deny rule.</li>
+  <li><b>macOS</b> only (Apple Silicon or Intel) in this release.</li>
+  <li>The <a href="https://docs.claude.com/en/docs/claude-code">Claude Code CLI</a>
+    installed at <code>$HOME/.local/bin/claude</code> (the path the plugin invokes).</li>
+  <li>IntelliJ-based IDE 2025.2 or later (build 252+) with the bundled
+    <b>Markdown</b> plugin enabled.</li>
 </ul>
 
-<h3>Source &amp; feedback</h3>
+<h3>Important: permissions</h3>
 <p>
-  Source code and issues:
-  <a href="https://github.com/muratiger/prompt-working-logs">github.com/muratiger/prompt-working-logs</a>.
+  <b>This plugin runs the Claude Code CLI with
+  <code>--dangerously-skip-permissions</code>.</b> The CLI is invoked headlessly,
+  so every tool call (file writes, edits, shell commands, network actions) that
+  Claude Code performs during a run is auto-approved without an interactive
+  prompt. Treat each prompt file as if it had unattended write access to your
+  project, and keep the watched directory scoped accordingly. Use the
+  <b>Stop</b> button in the <b>Prompt Work</b> tool window to cancel a runaway
+  run.
+</p>
+<p>
+  Note that <code>permissions.deny</code> in your Claude Code settings still
+  takes precedence, so make sure your <code>~/.claude/settings.json</code> /
+  <code>.claude/settings.json</code> does not deny <code>Write</code> or
+  <code>Edit</code> for your watched directory &mdash; otherwise runs will
+  stream output but never produce the expected result file.
 </p>
 <!-- Plugin description end -->
 

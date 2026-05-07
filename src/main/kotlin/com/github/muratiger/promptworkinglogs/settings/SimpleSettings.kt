@@ -15,6 +15,7 @@ class SimpleSettings : PersistentStateComponent<SimpleSettings.State> {
         var watchedDirectory: String = DEFAULT_WATCHED_DIRECTORY,
         var cliCommand: String = DEFAULT_CLI_COMMAND,
         var outputLanguage: String = DEFAULT_OUTPUT_LANGUAGE,
+        var showElapsedTime: Boolean = DEFAULT_SHOW_ELAPSED_TIME,
         // Bump CURRENT_DEFAULTS_VERSION whenever DEFAULT_CLI_COMMAND changes so existing
         // users' persisted state gets overwritten on the next plugin load.
         var defaultsVersion: Int = 0
@@ -43,6 +44,8 @@ class SimpleSettings : PersistentStateComponent<SimpleSettings.State> {
         const val LANGUAGE_JAPANESE = "Japanese"
         const val DEFAULT_OUTPUT_LANGUAGE = LANGUAGE_ENGLISH
         val SUPPORTED_OUTPUT_LANGUAGES = listOf(LANGUAGE_ENGLISH, LANGUAGE_JAPANESE)
+
+        const val DEFAULT_SHOW_ELAPSED_TIME = false
 
         fun getInstance(): SimpleSettings =
             ApplicationManager.getApplication().getService(SimpleSettings::class.java)

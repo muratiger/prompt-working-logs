@@ -1,5 +1,6 @@
 package com.github.muratiger.promptworkinglogs.toolwindow
 
+import com.github.muratiger.promptworkinglogs.settings.SimpleSettings
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.icons.AllIcons
@@ -21,10 +22,12 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBLabel
+import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.FlowLayout
 import javax.swing.JPanel
+import javax.swing.Timer
 
 class ClaudeToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -64,6 +67,12 @@ private class ClaudeConsolePanel(
 
     private val service = ClaudeConsoleService.getInstance(project)
 
+    private val elapsedTimeLabel = JBLabel("").apply {
+        border = JBUI.Borders.empty(2, 6)
+    }
+    private var elapsedTimer: Timer? = null
+    private var runStartTimeMillis: Long? = null
+
     private val toggleResultAction = object : ToggleAction(
         "Show Result MD",
         "Toggle Claude output and result MD",
@@ -100,6 +109,29 @@ private class ClaudeConsolePanel(
         }
     }
 
+    private val runStateListener = object : ClaudeConsoleService.RunStateListener {
+        override fun onRunStarted(startTimeMillis: Long) {
+            ApplicationManager.getApplication().invokeLater {
+                runStartTimeMillis = startTimeMillis
+                applyElapsedTimeVisibility()
+                if (elapsedTimeLabel.isVisible) {
+                    updateElapsedLabel(0L, running = true)
+                    startElapsedTimer()
+                }
+            }
+        }
+
+        override fun onRunFinished(elapsedMillis: Long) {
+            ApplicationManager.getApplication().invokeLater {
+                stopElapsedTimer()
+                runStartTimeMillis = null
+                if (elapsedTimeLabel.isVisible) {
+                    updateElapsedLabel(elapsedMillis, running = false)
+                }
+            }
+        }
+    }
+
     init {
         service.console = console
 
@@ -133,6 +165,7 @@ private class ClaudeConsolePanel(
         add(headerBar, BorderLayout.NORTH)
         add(toolbar.component, BorderLayout.WEST)
         add(cardPanel, BorderLayout.CENTER)
+        add(elapsedTimeLabel, BorderLayout.SOUTH)
 
         toolWindow.setTitleActions(emptyList())
         try {
@@ -143,7 +176,12 @@ private class ClaudeConsolePanel(
 
         service.addResultFileListener(resultListener)
         service.addShowConsoleListener(showConsoleListener)
+        service.addRunStateListener(runStateListener)
         updateResultView(service.latestResultFile)
+        applyElapsedTimeVisibility()
+        service.lastFinishedElapsedMillis?.let {
+            if (elapsedTimeLabel.isVisible) updateElapsedLabel(it, running = false)
+        }
     }
 
     private fun setShowingResult(state: Boolean) {
@@ -212,10 +250,59 @@ private class ClaudeConsolePanel(
         return PreviewResult(editor, "ok (${preferred.editorTypeId})")
     }
 
+    private fun applyElapsedTimeVisibility() {
+        val visible = SimpleSettings.getInstance().state.showElapsedTime
+        elapsedTimeLabel.isVisible = visible
+        if (!visible) {
+            stopElapsedTimer()
+            elapsedTimeLabel.text = ""
+        }
+    }
+
+    private fun startElapsedTimer() {
+        stopElapsedTimer()
+        val timer = Timer(ELAPSED_TICK_MILLIS) {
+            val start = runStartTimeMillis ?: return@Timer
+            updateElapsedLabel(System.currentTimeMillis() - start, running = true)
+        }
+        timer.isRepeats = true
+        timer.start()
+        elapsedTimer = timer
+    }
+
+    private fun stopElapsedTimer() {
+        elapsedTimer?.stop()
+        elapsedTimer = null
+    }
+
+    private fun updateElapsedLabel(elapsedMillis: Long, running: Boolean) {
+        val prefix = if (running) "Elapsed: " else "Elapsed (finished): "
+        elapsedTimeLabel.text = prefix + formatElapsed(elapsedMillis)
+    }
+
+    private fun formatElapsed(elapsedMillis: Long): String {
+        val safeMillis = if (elapsedMillis < 0) 0 else elapsedMillis
+        val totalSeconds = safeMillis / 1000
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        val tenths = (safeMillis % 1000) / 100
+        return if (minutes > 0) {
+            "%dm %02d.%ds".format(minutes, seconds, tenths)
+        } else {
+            "%d.%ds".format(seconds, tenths)
+        }
+    }
+
     fun dispose() {
         service.removeResultFileListener(resultListener)
         service.removeShowConsoleListener(showConsoleListener)
+        service.removeRunStateListener(runStateListener)
+        stopElapsedTimer()
         currentResultFileEditor?.let { Disposer.dispose(it) }
         currentResultFileEditor = null
+    }
+
+    companion object {
+        private const val ELAPSED_TICK_MILLIS = 100
     }
 }

@@ -3,6 +3,7 @@ package com.github.muratiger.promptworkinglogs.settings
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.JBColor
+import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBTextField
@@ -20,6 +21,7 @@ class SimpleSettingsConfigurable : Configurable {
     private lateinit var watchedDirectoryField: JBTextField
     private lateinit var cliCommandArea: JBTextArea
     private lateinit var outputLanguageComboBox: ComboBox<String>
+    private lateinit var showElapsedTimeCheckBox: JBCheckBox
 
     override fun getDisplayName(): String = "Prompt Work"
 
@@ -36,9 +38,11 @@ class SimpleSettingsConfigurable : Configurable {
         val languageComboBox = ComboBox(
             DefaultComboBoxModel(SimpleSettings.SUPPORTED_OUTPUT_LANGUAGES.toTypedArray())
         )
+        val elapsedCheckBox = JBCheckBox("Show elapsed time on the bottom pane")
         watchedDirectoryField = watchedField
         cliCommandArea = commandArea
         outputLanguageComboBox = languageComboBox
+        showElapsedTimeCheckBox = elapsedCheckBox
 
         val commandPanel = JPanel(BorderLayout()).apply {
             val scrollPane = JScrollPane(commandArea).apply {
@@ -59,6 +63,9 @@ class SimpleSettingsConfigurable : Configurable {
             .addComponent(JBLabel("\${filePath} is replaced with the relative path of the target file"))
             .addComponent(JBLabel("\${dirPath} is replaced with the directory path matching the target file name (extension stripped, trailing '/')"))
             .addComponent(JBLabel("\${language} is replaced with the selected Output Language value"))
+            .addSeparator()
+            .addComponent(elapsedCheckBox)
+            .addComponent(JBLabel("Display the elapsed time from run start to completion at the bottom of the tool window"))
             .addComponentFillVertically(JPanel(), 0)
             .panel
     }
@@ -68,7 +75,8 @@ class SimpleSettingsConfigurable : Configurable {
         val settings = SimpleSettings.getInstance()
         return watchedDirectoryField.text != settings.state.watchedDirectory ||
                 cliCommandArea.text != settings.state.cliCommand ||
-                outputLanguageComboBox.selectedItem != settings.state.outputLanguage
+                outputLanguageComboBox.selectedItem != settings.state.outputLanguage ||
+                showElapsedTimeCheckBox.isSelected != settings.state.showElapsedTime
     }
 
     override fun apply() {
@@ -78,6 +86,7 @@ class SimpleSettingsConfigurable : Configurable {
         settings.state.cliCommand = cliCommandArea.text
         settings.state.outputLanguage =
             outputLanguageComboBox.selectedItem as? String ?: SimpleSettings.DEFAULT_OUTPUT_LANGUAGE
+        settings.state.showElapsedTime = showElapsedTimeCheckBox.isSelected
     }
 
     override fun reset() {
@@ -86,6 +95,7 @@ class SimpleSettingsConfigurable : Configurable {
         watchedDirectoryField.text = settings.state.watchedDirectory
         cliCommandArea.text = settings.state.cliCommand
         outputLanguageComboBox.selectedItem = settings.state.outputLanguage
+        showElapsedTimeCheckBox.isSelected = settings.state.showElapsedTime
     }
 
     override fun disposeUIResources() {

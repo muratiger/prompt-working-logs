@@ -22,6 +22,20 @@ class ClaudeConsoleService {
 
     private val resultFileListeners = CopyOnWriteArrayList<(VirtualFile?) -> Unit>()
     private val showConsoleListeners = CopyOnWriteArrayList<() -> Unit>()
+    private val runStateListeners = CopyOnWriteArrayList<RunStateListener>()
+
+    @Volatile
+    var runStartTimeMillis: Long? = null
+        private set
+
+    @Volatile
+    var lastFinishedElapsedMillis: Long? = null
+        private set
+
+    interface RunStateListener {
+        fun onRunStarted(startTimeMillis: Long)
+        fun onRunFinished(elapsedMillis: Long)
+    }
 
     val isRunning: Boolean
         get() {
@@ -58,6 +72,29 @@ class ClaudeConsoleService {
 
     fun removeShowConsoleListener(listener: () -> Unit) {
         showConsoleListeners.remove(listener)
+    }
+
+    fun notifyRunStarted() {
+        val now = System.currentTimeMillis()
+        runStartTimeMillis = now
+        lastFinishedElapsedMillis = null
+        runStateListeners.forEach { it.onRunStarted(now) }
+    }
+
+    fun notifyRunFinished() {
+        val start = runStartTimeMillis ?: return
+        val elapsed = System.currentTimeMillis() - start
+        lastFinishedElapsedMillis = elapsed
+        runStartTimeMillis = null
+        runStateListeners.forEach { it.onRunFinished(elapsed) }
+    }
+
+    fun addRunStateListener(listener: RunStateListener) {
+        runStateListeners.add(listener)
+    }
+
+    fun removeRunStateListener(listener: RunStateListener) {
+        runStateListeners.remove(listener)
     }
 
     companion object {
